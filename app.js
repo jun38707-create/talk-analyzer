@@ -1,5 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+window.APP_LOADED = true;
+
 // DOM 요소
 const apiKeyInput = document.getElementById('api-key');
 const saveKeyBtn = document.getElementById('save-key');
@@ -69,6 +71,7 @@ function handleFileSelect(file) {
     fileNameDisplay.textContent = file.name;
     fileInfo.classList.remove('hidden');
     analyzeBtn.disabled = false;
+    console.log('File selected:', file.name, 'Type:', file.type);
 }
 
 removeFileBtn.addEventListener('click', () => {
@@ -97,7 +100,7 @@ analyzeBtn.addEventListener('click', async () => {
         const genAI = new GoogleGenerativeAI(apiKey);
 
         // 시도해볼 모델 목록 (404 오류 대응을 위해 순차적으로 시도)
-        const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-1.5-pro", "gemini-2.0-flash-exp"];
+        const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro", "gemini-2.0-flash-exp"];
         let result = null;
         let lastError = null;
 
