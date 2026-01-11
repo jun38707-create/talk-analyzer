@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,6 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@100..900&display=swap" rel="stylesheet">
 </head>
+
 <body>
     <div class="container">
         <header>
@@ -60,6 +62,10 @@
                         <h3>전체 맥락 요약</h3>
                         <div id="context-summary" class="text-box">분석 중...</div>
                     </div>
+                    <div class="report-actions">
+                        <button id="copy-btn" class="secondary-btn">📄 결과 복사 (삼성노트 등)</button>
+                        <button id="save-txt-btn" class="secondary-btn">💾 텍스트 파일 저장</button>
+                    </div>
                 </div>
             </section>
         </main>
@@ -77,4 +83,5 @@
     </script>
     <script src="app.js" type="module"></script>
 </body>
+
 </html>

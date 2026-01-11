@@ -106,7 +106,8 @@ input[type="password"] {
     background: rgba(255, 255, 255, 0.5);
 }
 
-.drop-zone:hover, .drop-zone.dragover {
+.drop-zone:hover,
+.drop-zone.dragover {
     border-color: var(--primary);
     background: rgba(74, 144, 226, 0.05);
 }
@@ -174,7 +175,7 @@ input[type="password"] {
 .spinner {
     width: 40px;
     height: 40px;
-    border: 4px solid rgba(0,0,0,0.1);
+    border: 4px solid rgba(0, 0, 0, 0.1);
     border-left-color: var(--primary);
     border-radius: 50%;
     animation: spin 1s linear infinite;
@@ -182,7 +183,9 @@ input[type="password"] {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .summary-grid {
@@ -213,11 +216,52 @@ input[type="password"] {
     white-space: pre-wrap;
 }
 
-.mine h3 { border-left: 4px solid #4a90e2; padding-left: 8px; }
-.other h3 { border-left: 4px solid #f39c12; padding-left: 8px; }
+.mine h3 {
+    border-left: 4px solid #4a90e2;
+    padding-left: 8px;
+}
+
+.other h3 {
+    border-left: 4px solid #f39c12;
+    padding-left: 8px;
+}
 
 .context-box {
     margin-top: 20px;
+}
+
+.report-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.report-actions .secondary-btn {
+    padding: 12px 20px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #ffffff;
+    border: 1px solid #cbd5e0;
+    color: #4a5568;
+}
+
+.report-actions .secondary-btn:hover {
+    background: #edf2f7;
+    transform: translateY(-2px);
+    border-color: #a0aec0;
+}
+
+@media (max-width: 480px) {
+    .report-actions .secondary-btn {
+        width: 100%;
+        justify-content: center;
+    }
 }
 
 .hidden {

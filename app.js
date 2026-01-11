@@ -16,6 +16,8 @@ const analysisContent = document.getElementById('analysis-content');
 const myArgumentEl = document.getElementById('my-argument');
 const otherArgumentEl = document.getElementById('other-argument');
 const contextSummaryEl = document.getElementById('context-summary');
+const copyBtn = document.getElementById('copy-btn');
+const saveTxtBtn = document.getElementById('save-txt-btn');
 
 let selectedFile = null;
 
@@ -166,6 +168,63 @@ analyzeBtn.addEventListener('click', async () => {
         analysisContent.classList.remove('hidden');
         analyzeBtn.disabled = false;
     }
+});
+
+// 클립보드 복사 기능
+copyBtn.addEventListener('click', () => {
+    const textToCopy = `
+[대화 맥락 분석 리포트]
+
+1. 나의 핵심 주장:
+${myArgumentEl.textContent}
+
+2. 상대방의 핵심 주장:
+${otherArgumentEl.textContent}
+
+3. 전체 맥락 요약:
+${contextSummaryEl.textContent}
+
+---
+분석일: ${new Date().toLocaleString()}
+`.trim();
+
+    navigator.clipboard.writeText(textToCopy).then(() => {
+        alert('분석 결과가 클립보드에 복사되었습니다. 삼성노트 등에 붙여넣기 하세요!');
+    }).catch(err => {
+        console.error('복사 실패:', err);
+        alert('복사 중 오류가 발생했습니다.');
+    });
+});
+
+// 텍스트 파일 저장 기능
+saveTxtBtn.addEventListener('click', () => {
+    const textToSave = `
+[대화 맥락 분석 리포트]
+
+1. 나의 핵심 주장:
+${myArgumentEl.textContent}
+
+2. 상대방의 핵심 주장:
+${otherArgumentEl.textContent}
+
+3. 전체 맥락 요약:
+${contextSummaryEl.textContent}
+
+---
+분석일: ${new Date().toLocaleString()}
+`.trim();
+
+    const blob = new Blob([textToSave], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const today = new Date().toISOString().split('T')[0];
+
+    a.href = url;
+    a.download = `대화분석결과_${today}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 });
 
 async function fileToBase64(file) {
