@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>대화 맥락 분석기 - Google AI Studio</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@100..900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>대화 맥락 분석기 <span class="badge">Gemini 1.5 Flash</span></h1>
+            <p>녹음 파일이나 대화 내용을 업로드하여 맥락과 핵심 주장을 분석하세요.</p>
+        </header>
+
+        <main>
+            <section class="api-section card">
+                <div class="input-group">
+                    <label for="api-key">Gemini API Key</label>
+                    <input type="password" id="api-key" placeholder="API 키를 입력하세요..." />
+                    <button id="save-key" class="secondary-btn">저장</button>
+                </div>
+            </section>
+
+            <section class="upload-section card">
+                <div id="drop-zone" class="drop-zone">
+                    <div class="icon">📁</div>
+                    <p>메모, 녹음 파일 또는 텍스트 파일을 여기에 드래그하거나 클릭하여 업로드하세요.</p>
+                    <span class="support-text">지원 형식: mp3, m4a, wav, txt, pdf 등</span>
+                    <input type="file" id="file-input" hidden accept="audio/*, .txt, .pdf" />
+                </div>
+                <div id="file-info" class="file-info hidden">
+                    <span id="file-name">파일 이름.mp3</span>
+                    <button id="remove-file" class="remove-btn">✕</button>
+                </div>
+                <button id="analyze-btn" class="primary-btn" disabled>분석 시작하기</button>
+            </section>
+
+            <section id="result-section" class="result-section hidden">
+                <div class="loading-overlay hidden">
+                    <div class="spinner"></div>
+                    <p>AI가 대화를 분석 중입니다. 잠시만 기다려 주세요...</p>
+                </div>
+                <div id="analysis-content" class="content card">
+                    <h2>분석 리포트</h2>
+                    <div class="summary-grid">
+                        <div class="summary-item mine">
+                            <h3>나의 핵심 주장</h3>
+                            <div id="my-argument" class="text-box">분석 중...</div>
+                        </div>
+                        <div class="summary-item other">
+                            <h3>상대방의 핵심 주장</h3>
+                            <div id="other-argument" class="text-box">분석 중...</div>
+                        </div>
+                    </div>
+                    <div class="context-box">
+                        <h3>전체 맥락 요약</h3>
+                        <div id="context-summary" class="text-box">분석 중...</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 대화 맥락 분석기 - 데스크탑 및 모바일 지원</p>
+        </footer>
+    </div>
+    <script type="importmap">
+        {
+          "imports": {
+            "@google/generative-ai": "https://esm.run/@google/generative-ai"
+          }
+        }
+    </script>
+    <script src="app.js" type="module"></script>
+</body>
+</html>
