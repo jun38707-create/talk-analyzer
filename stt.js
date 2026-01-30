@@ -1,7 +1,3 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-window.STT_LOADED = true;
-
 // DOM 요소
 const apiKeyInput = document.getElementById('api-key');
 const saveKeyBtn = document.getElementById('save-key');
@@ -39,25 +35,6 @@ saveKeyBtn.addEventListener('click', () => {
 });
 
 // 파일 업로드 처리
-dropZone.addEventListener('click', () => fileInput.click());
-
-dropZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropZone.classList.add('dragover');
-});
-
-dropZone.addEventListener('dragleave', () => {
-    dropZone.classList.remove('dragover');
-});
-
-dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.classList.remove('dragover');
-    if (e.dataTransfer.files.length > 0) {
-        handleFileSelect(e.dataTransfer.files[0]);
-    }
-});
-
 fileInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
         handleFileSelect(e.target.files[0]);
@@ -75,10 +52,8 @@ function handleFileSelect(file) {
     selectedFile = file;
     fileNameDisplay.textContent = file.name;
     fileInfo.classList.remove('hidden');
-
-    // 버튼 활성화 상태 강제 업데이트
     transcribeBtn.disabled = false;
-    console.log('File selected:', file.name, 'Type:', file.type);
+    transcriptionContent.classList.add('hidden');
 }
 
 removeFileBtn.addEventListener('click', () => {
@@ -87,6 +62,57 @@ removeFileBtn.addEventListener('click', () => {
     fileInfo.classList.add('hidden');
     transcribeBtn.disabled = true;
 });
+
+// 라이브러리 없이 직접 API를 호출하는 함수
+async function callGeminiAPI(apiKey, prompt, file) {
+    const modelsToTry = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
+    let lastError = null;
+
+    for (const modelName of modelsToTry) {
+        try {
+            console.log(`Trying model: ${modelName}...`);
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+            
+            let parts = [{ text: prompt }];
+            
+            if (file) {
+                let mimeType = file.type;
+                if (!mimeType && file.name.endsWith('.m4a')) mimeType = 'audio/x-m4a';
+                if (!mimeType && file.name.endsWith('.mp3')) mimeType = 'audio/mpeg';
+                if (!mimeType) mimeType = 'audio/x-m4a';
+                
+                const base64Data = await fileToBase64(file);
+                parts.push({
+                    inlineData: {
+                        mimeType: mimeType,
+                        data: base64Data
+                    }
+                });
+            }
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts }] })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error?.message || 'API 요청 실패');
+            }
+
+            const data = await response.json();
+            if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+                throw new Error('AI 응답 형식이 올바르지 않습니다.');
+            }
+            return data.candidates[0].content.parts[0].text;
+        } catch (err) {
+            console.warn(`${modelName} 시도 실패:`, err.message);
+            lastError = err;
+        }
+    }
+    throw lastError;
+}
 
 // STT 로직
 transcribeBtn.addEventListener('click', async () => {
@@ -104,17 +130,10 @@ transcribeBtn.addEventListener('click', async () => {
     transcribeBtn.disabled = true;
 
     try {
-        const genAI = new GoogleGenerativeAI(apiKey);
-
-        // 정밀 STT를 위한 다양한 모델 시도 (순서 중요)
-        const modelsToTry = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro", "gemini-2.0-flash-exp"];
-        let result = null;
-        let lastError = null;
-
         const prompt = `
             당신은 전문적인 속기사입니다. 
             제공된 오디오 파일을 듣고 들리는 모든 대화를 **하나도 빠짐없이** 텍스트로 아주 정확하게 옮겨주세요 (Full Transcription).
-            
+
             [지침]
             1. 화자가 바뀔 때마다 줄바꿈을 하고 '화자 1:', '화자 2:' 등으로 구분하세요.
             2. 기술적인 용어(특히 건설, 토목, 설비 등), 숫자, 단위(m, cm, kg, 구배, 지반고 등)를 들리는 대로 정확하게 기록하세요.
@@ -123,38 +142,10 @@ transcribeBtn.addEventListener('click', async () => {
             5. 한국어가 기본이지만 섞여있는 영어 단어와 전문 술어도 정확히 표기하세요.
         `;
 
-        for (const modelName of modelsToTry) {
-            try {
-                console.log(`Trying model: ${modelName}...`);
-                const model = genAI.getGenerativeModel({ model: modelName });
-
-                const base64Data = await fileToBase64(selectedFile);
-                result = await model.generateContent([
-                    prompt,
-                    {
-                        inlineData: {
-                            mimeType: selectedFile.type,
-                            data: base64Data
-                        }
-                    }
-                ]);
-
-                if (result) break;
-            } catch (err) {
-                console.warn(`${modelName} 시도 실패:`, err.message);
-                lastError = err;
-            }
-        }
-
-        if (!result) {
-            throw new Error(`모든 모델 시도에 실패했습니다. 마지막 오류: ${lastError?.message}`);
-        }
-
-        const responseText = result.response.text();
+        const responseText = await callGeminiAPI(apiKey, prompt, selectedFile);
         transcriptBox.innerHTML = responseText.replace(/\n/g, '<br>');
 
     } catch (error) {
-        console.error('STT 중 최종 오류 발생:', error);
         alert('변환 중 오류가 발생했습니다: ' + error.message);
     } finally {
         loadingOverlay.classList.add('hidden');
@@ -163,18 +154,17 @@ transcribeBtn.addEventListener('click', async () => {
     }
 });
 
-// 클립보드 복사 기능
+// 클립보드 복사
 copyBtn.addEventListener('click', () => {
     const textToCopy = transcriptBox.innerText;
     navigator.clipboard.writeText(textToCopy).then(() => {
         alert('텍스트가 클립보드에 복사되었습니다.');
     }).catch(err => {
-        console.error('복사 실패:', err);
         alert('복사 중 오류가 발생했습니다.');
     });
 });
 
-// 텍스트 파일 저장 기능
+// 파일 저장
 saveTxtBtn.addEventListener('click', () => {
     const textToSave = `[정밀 STT 결과 리포트]\n\n파일: ${selectedFile.name}\n일시: ${new Date().toLocaleString()}\n\n---\n\n${transcriptBox.innerText}`;
     const blob = new Blob([textToSave], { type: 'text/plain;charset=utf-8' });

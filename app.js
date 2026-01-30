@@ -1,7 +1,3 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-window.APP_LOADED = true;
-
 // DOM 요소
 const apiKeyInput = document.getElementById('api-key');
 const saveKeyBtn = document.getElementById('save-key');
@@ -41,25 +37,6 @@ saveKeyBtn.addEventListener('click', () => {
 });
 
 // 파일 업로드 처리
-dropZone.addEventListener('click', () => fileInput.click());
-
-dropZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropZone.classList.add('dragover');
-});
-
-dropZone.addEventListener('dragleave', () => {
-    dropZone.classList.remove('dragover');
-});
-
-dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.classList.remove('dragover');
-    if (e.dataTransfer.files.length > 0) {
-        handleFileSelect(e.dataTransfer.files[0]);
-    }
-});
-
 fileInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
         handleFileSelect(e.target.files[0]);
@@ -71,7 +48,7 @@ function handleFileSelect(file) {
     fileNameDisplay.textContent = file.name;
     fileInfo.classList.remove('hidden');
     analyzeBtn.disabled = false;
-    console.log('File selected:', file.name, 'Type:', file.type);
+    analysisContent.classList.add('hidden');
 }
 
 removeFileBtn.addEventListener('click', () => {
@@ -80,6 +57,57 @@ removeFileBtn.addEventListener('click', () => {
     fileInfo.classList.add('hidden');
     analyzeBtn.disabled = true;
 });
+
+// 라이브러리 없이 직접 API를 호출하는 함수
+async function callGeminiAPI(apiKey, prompt, file) {
+    const modelsToTry = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
+    let lastError = null;
+
+    for (const modelName of modelsToTry) {
+        try {
+            console.log(`Trying model: ${modelName}...`);
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+            
+            let parts = [{ text: prompt }];
+            
+            if (file) {
+                let mimeType = file.type;
+                if (!mimeType && file.name.endsWith('.m4a')) mimeType = 'audio/x-m4a';
+                if (!mimeType && file.name.endsWith('.mp3')) mimeType = 'audio/mpeg';
+                if (!mimeType) mimeType = 'audio/x-m4a';
+                
+                const base64Data = await fileToBase64(file);
+                parts.push({
+                    inlineData: {
+                        mimeType: mimeType,
+                        data: base64Data
+                    }
+                });
+            }
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts }] })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error?.message || 'API 요청 실패');
+            }
+
+            const data = await response.json();
+            if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+                throw new Error('AI 응답 형식이 올바르지 않습니다.');
+            }
+            return data.candidates[0].content.parts[0].text;
+        } catch (err) {
+            console.warn(`${modelName} 시도 실패:`, err.message);
+            lastError = err;
+        }
+    }
+    throw lastError;
+}
 
 // 분석 로직
 analyzeBtn.addEventListener('click', async () => {
@@ -97,13 +125,6 @@ analyzeBtn.addEventListener('click', async () => {
     analyzeBtn.disabled = true;
 
     try {
-        const genAI = new GoogleGenerativeAI(apiKey);
-
-        // 시도해볼 모델 목록 (404 오류 대응을 위해 순차적으로 시도)
-        const modelsToTry = ["gemini-pro"];
-        let result = null;
-        let lastError = null;
-
         const prompt = `
             당신은 복잡한 대화나 녹음을 분석하여 핵심을 짚어주는 비서입니다.
             제공된 데이터를 분석하여 반드시 아래의 JSON 형식을 지켜서 답변해 주세요. 
@@ -116,39 +137,7 @@ analyzeBtn.addEventListener('click', async () => {
             }
         `;
 
-        for (const modelName of modelsToTry) {
-            try {
-                console.log(`Trying model: ${modelName}...`);
-                const model = genAI.getGenerativeModel({ model: modelName });
-
-                if (selectedFile.type.startsWith('audio/')) {
-                    const base64Data = await fileToBase64(selectedFile);
-                    result = await model.generateContent([
-                        prompt,
-                        {
-                            inlineData: {
-                                mimeType: selectedFile.type,
-                                data: base64Data
-                            }
-                        }
-                    ]);
-                } else {
-                    const textContent = await selectedFile.text();
-                    result = await model.generateContent([prompt, textContent]);
-                }
-
-                if (result) break; // 성공 시 루프 종료
-            } catch (err) {
-                console.warn(`${modelName} 시도 실패:`, err.message);
-                lastError = err;
-            }
-        }
-
-        if (!result) {
-            throw new Error(`모든 모델 시도에 실패했습니다. API 키의 권한이나 지역 제한을 확인하세요. 마지막 오류: ${lastError?.message}`);
-        }
-
-        const responseText = result.response.text();
+        const responseText = await callGeminiAPI(apiKey, prompt, selectedFile);
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
 
         if (jsonMatch) {
@@ -157,14 +146,11 @@ analyzeBtn.addEventListener('click', async () => {
             otherArgumentEl.textContent = data.otherArgument;
             contextSummaryEl.textContent = data.context;
         } else {
-            // JSON 파싱 실패 시 일반 텍스트로 표시
             contextSummaryEl.textContent = responseText;
             myArgumentEl.textContent = "리포트 참조";
             otherArgumentEl.textContent = "리포트 참조";
         }
-
     } catch (error) {
-        console.error('분석 중 최종 오류 발생:', error);
         alert('분석 중 오류가 발생했습니다: ' + error.message);
     } finally {
         loadingOverlay.classList.add('hidden');
@@ -173,7 +159,7 @@ analyzeBtn.addEventListener('click', async () => {
     }
 });
 
-// 클립보드 복사 기능
+// 클립보드 복사
 copyBtn.addEventListener('click', () => {
     const textToCopy = `
 [대화 맥락 분석 리포트]
@@ -192,14 +178,13 @@ ${contextSummaryEl.textContent}
 `.trim();
 
     navigator.clipboard.writeText(textToCopy).then(() => {
-        alert('분석 결과가 클립보드에 복사되었습니다. 삼성노트 등에 붙여넣기 하세요!');
+        alert('분석 결과가 클립보드에 복사되었습니다.');
     }).catch(err => {
-        console.error('복사 실패:', err);
         alert('복사 중 오류가 발생했습니다.');
     });
 });
 
-// 텍스트 파일 저장 기능
+// 파일 저장
 saveTxtBtn.addEventListener('click', () => {
     const textToSave = `
 [대화 맥락 분석 리포트]
@@ -237,21 +222,4 @@ async function fileToBase64(file) {
         reader.onload = () => resolve(reader.result.split(',')[1]);
         reader.onerror = error => reject(error);
     });
-}
-
-function parseAndDisplayResult(text) {
-    // 간단한 파싱 로직 (AI 응답 형식에 따라 조정 필요)
-    // 실제로는 더 정교한 정규표현식이나 구조화된 출력이 좋음
-    const blocks = text.split(/\d\./);
-
-    if (blocks.length >= 4) {
-        myArgumentEl.textContent = blocks[1].trim();
-        otherArgumentEl.textContent = blocks[2].trim();
-        contextSummaryEl.textContent = blocks[3].trim();
-    } else {
-        // 파싱 실패 시 전체 텍스트 출력
-        contextSummaryEl.textContent = text;
-        myArgumentEl.textContent = "분석 리포트 참조";
-        otherArgumentEl.textContent = "분석 리포트 참조";
-    }
 }
